@@ -1,0 +1,37 @@
+#libraries
+library(tidyverse)
+library(RColorBrewer)
+library(viridis)
+library(tidytuesdayR)
+
+#import data
+tuesdata <- tt_load('2021-08-24')
+
+lemur_dat <- tuesdata$lemur_data
+tax_dat <- tuesdata$taxonomy
+
+
+# Average age and Litter size distribution
+lemur_dat %>% 
+  select(taxon, name, age_max_live_or_dead_y, n_known_offspring, sex, dlc_id) %>% 
+  distinct(name, .keep_all = T) %>% 
+  na.omit(age_max_live_or_dead_y, n_known_offspring) %>% 
+  filter(sex == "F") %>%
+  group_by(taxon) %>% 
+  mutate(total = n_distinct(dlc_id)) %>% 
+  filter(total > 15) %>% 
+  summarize(avg_litter = median(n_known_offspring), 
+            avg_age = mean(age_max_live_or_dead_y, na.rm=TRUE)) %>% 
+  left_join(tax_dat, by = "taxon") %>% 
+  filter(!is.na(common_name)) %>% 
+  filter(common_name != "hybrid") %>%
+  mutate(name = fct_reorder(common_name, avg_age)) %>%
+  ggplot(aes(avg_age, name, fill = as.factor(avg_litter))) +
+  scale_fill_viridis(discrete = TRUE, alpha=0.6, option="C")+
+  geom_col() +
+  theme_bw() +
+  labs(y = NULL,
+       x = "Mean Age in Years",
+       title = "Female Lemurs average age and no.of babies",
+       subtitle = "Median litter is cacluclated among species with at least 15 subjects",
+       caption = "#TidyTuesday, data & photo from Duke Lemur Center, plot by @Kesava Asam")
