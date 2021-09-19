@@ -1,0 +1,126 @@
+---
+title: "Tidy Tuesday Billboard"
+author: "Kesava Asam"
+date: 'Report Last Run: `r Sys.time()`'
+output:
+  pdf_document:
+    toc_depth: 2
+    number_sections: yes
+  html_document:
+    toc_depth: '2'
+    df_print: paged
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd("~/Documents/tidytuesday/billboard_09192021")
+```
+
+\centering
+\raggedright
+\newpage
+\tableofcontents
+
+\newpage
+
+# Packages
+
+```{r}
+# load required packages
+library(tidyverse)
+library(tidytuesdayR)
+library(ggridges)
+library(ggtext)
+
+theme_set(theme_light())
+```
+
+# Data
+
+```{r}
+data_tue <- tidytuesdayR::tt_load('2021-09-14')
+```
+
+We have two files for this tuesday data
+
+
+```{r}
+billboard <- data_tue$billboard
+
+spotify <- data_tue$audio_features
+```
+
+\newpage
+
+# Function
+
+Make a function to pick keywords, in this case colors
+
+```{r}
+pick_color <- function(col_int) {
+  
+  left_join(billboard, spotify, by = c('song_id', 'song', 'performer')) %>% 
+  select(song, danceability, energy, valence, tempo, 
+         spotify_track_popularity) %>%
+  filter(str_detect(song, {{col_int}})) %>% 
+  drop_na() %>%
+  unique() %>% 
+    mutate(color_theme = {{col_int}}) %>% 
+    distinct(song, .keep_all = T)
+  
+}
+```
+
+# Subset
+
+Make a list of colors and map the function
+
+```{r}
+rygb <- c("Blue ", "Green ", "Yellow ", "Red ", "Black ", "White ", "Brown ", "Pink ")
+
+# Note: Space next to the color is to get rid of words that are not colors
+
+rygb_songs <- map_df(rygb, pick_color)
+```
+
+\newpage
+
+# Visualization
+
+Make ridges plot
+
+```{r fig.height=8, fig.width=10}
+rygb_songs %>% 
+  arrange(desc(color_theme)) %>% 
+  ggplot(aes(x = energy, y = color_theme, fill = color_theme)) +
+  ggridges::geom_density_ridges(alpha = 0.8) +
+  scale_color_identity(aesthetics = c("fill", "color")) +
+  theme_void() + 
+  labs(title = "Energy distribution of top billboard songs with color in their name.", 
+       subtitle = "Each peak represents the distribution of energy for the 'colored' song. Energy increases from left to right.", 
+       caption = "Data source: Tidytuesday 2021-09-14. Kesava Asam") +
+  theme(
+    #plot.margin = margin(160,260,40,160),
+    plot.background = element_rect(fill = "#FFFFE0"), 
+    plot.title = element_textbox_simple(colour = "black", family = "Times", 
+                                        size = 25, halign = 0.01, margin = margin(10,0,10,0)), 
+    plot.caption = element_textbox_simple(colour = "black", family = "Times", 
+                                          size = 12, halign = 0.95, margin = margin(10,0,10,0)),
+    plot.subtitle = element_textbox_simple(colour = "black", family = "Times", 
+                                           size = 14, halign = 0.01, margin = margin(10,0,10,0))
+  ) 
+
+ggsave("tidy_tuesday_billboard_result.png", 
+       plot = last_plot(), width = 290, height = 190, 
+       units = "mm", dpi = 400)
+```
+
+\newpage
+
+```{r}
+sessionInfo()
+```
+
