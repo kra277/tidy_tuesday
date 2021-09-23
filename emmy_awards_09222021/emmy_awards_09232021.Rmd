@@ -1,0 +1,185 @@
+---
+title: 'Tidy Tuesday: Emmy Awards'
+author: "Kesava Asam"
+date: 'Report Last Run: `r Sys.time()`'
+output:
+  pdf_document:
+    toc_depth: 2
+    number_sections: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd("~/Documents/tidytuesday/emmy_awards_09222021/")
+```
+
+\centering
+\raggedright
+\newpage
+\tableofcontents
+
+\newpage
+
+# Packages
+
+```{r}
+# load required packages
+library(tidyverse)
+library(tidytuesdayR)
+
+theme_set(theme_light())
+```
+
+# Data
+
+```{r}
+data_tue <- tidytuesdayR::tt_load('2021-09-21')
+```
+
+Emmy nominees and awards data
+
+```{r}
+emmy_nom <- data_tue$nominees
+```
+
+After checking the data and cleaning. My idea is to select Emmy Winners, separate the production column to get the Make up artists. Plot a graph of the number of winning makeup artists for the shows. 
+
+Cleaning steps:
+
+  - Recode SNL special and regular under one Title
+  
+  - Recode AHS all seasons under one Title
+  
+  - Recode Star Trek all seasons under one Title
+  
+  - Separate production to see names and title separate
+
+\newpage
+
+# Makeup Artists 
+
+```{r}
+makeup_emmy <- 
+  emmy_nom %>% 
+  filter(type == "Winner") %>% 
+  group_by(category) %>% 
+  separate(production, c("Name", "Profession"), 
+           sep = ",", extra = "merge") %>% 
+  filter(str_detect(Profession, 'Makeup')) %>% 
+  mutate(title = recode(title, 
+                        "The Saturday Night Live 40th Anniversary Special" = 
+                          "The Saturday Night Live", 
+                        "American Horror Story: Roanoke" = 
+                          "American Horror Story", 
+                        "American Horror Story: Hotel" = 
+                          "American Horror Story",
+                        "American Horror Story: Freak Show" = 
+                          "American Horror Story", 
+                        "Star Trek: Picard" = "Star Trek", 
+                        "Star Trek: Discovery" = "Star Trek")) %>% 
+  group_by(title) %>% 
+  summarise("wins" = n()) %>% 
+  arrange(desc(wins)) 
+```
+
+\newpage
+
+```{r}
+p1 <- 
+  makeup_emmy %>% 
+  head(11) %>% 
+  ggplot() + 
+  geom_hline(aes(yintercept = y), 
+             data.frame(y = c(0:3) * 10),
+             color = "gray50") + 
+  geom_col(aes(x = reorder(str_wrap(title, 5), wins),
+               y = wins, 
+               fill = wins),
+           position = "dodge2",
+           show.legend = TRUE,
+           alpha = 0.8) + 
+  geom_point(aes(x = reorder(str_wrap(title, 5), wins),
+                 y = wins),
+             size = 2,
+             color = "gray20") +
+  geom_segment(aes(x = reorder(str_wrap(title, 5), wins),
+                   y = 0,
+                   xend = reorder(str_wrap(title, 5), wins),
+                   yend = 35), linetype = "dashed",
+               color = "gray10") + 
+  coord_polar() 
+```
+
+## Add labels for scales
+
+```{r}
+p2 <- 
+  p1 + 
+  annotate(x = 11.55, y = 6, label = "5", geom = "text", color = "gray12", family = "serif") + 
+  annotate(x = 11.55, y = 11, label = "10", geom = "text", color = "gray12", family = "serif") + 
+  annotate(x = 11.55, y = 16, label = "15", geom = "text", color = "gray12", family = "serif") +
+  annotate(x = 11.55, y = 21, label = "20", geom = "text", color = "gray12", family = "serif") +
+  annotate(x = 11.55, y = 26, label = "25", geom = "text", color = "gray12", family = "serif") +
+  annotate(x = 11.55, y = 31, label = "30", geom = "text", color = "gray12", family = "serif") +
+  scale_y_continuous(limits = c(-5, 35), expand = c(0, 0),
+    breaks = c(0, 5, 10, 15, 20, 25, 30, 35, 40)) 
+```
+
+\newpage
+
+```{r fig.height=8, fig.width=8}
+p2
+```
+
+\newpage
+
+## Add colors 
+
+```{r}
+p3<- 
+  p2 + 
+  scale_fill_gradientn("No.of Wins",
+     colours = c("#AA646B", "#F38F99", "#F4A999", "#F8E0B6", "#E4BD98", "#D69F7E", "#774936"),
+     limits=c(5,35), breaks = c(5, 10, 15, 20, 25, 30, 35)) +
+  theme(axis.title = element_blank(),
+    axis.ticks = element_blank(),
+    axis.text.y = element_blank(),
+    axis.text.x = element_text(color = "gray15", size = 11),
+    legend.position = "bottom", 
+    text = element_text(color = "gray12", family = "Times")) 
+```
+
+## Add Labs
+
+```{r}
+final_plot <- 
+  p3 +
+  labs(title = "SNL has won most makeup artist Emmys", 
+       subtitle = "Data range is from 2017 to 2021. Merged all AHS and Star Trek seasons into respective titles.", 
+       caption = "TidyTuesday 2021-09-21. Visualisation by Kesava Asam.\n Data Source: Emmy") +
+  theme(plot.title = element_text(face = "bold", size = 16, hjust = 0.01),
+    plot.subtitle = element_text(size = 12, hjust = 0.05),
+    plot.caption = element_text(size = 10, hjust = .5))
+```
+
+\newpage
+
+```{r fig.height=10, fig.width=10}
+final_plot
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_emmys_result.png", 
+       plot = last_plot(), width = 220, height = 220, 
+       units = "mm", dpi = 400)
+```
+
+\newpage
+
+# Reference
+
+Thanks Tobias Stadler and Tomás Capretto for helping me generate the Circular barplot. [ref](https://www.r-graph-gallery.com/web-circular-barplot-with-R-and-ggplot2.html)
