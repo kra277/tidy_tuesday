@@ -1,0 +1,204 @@
+---
+title: 'Tidy Tuesday: NBER Publication Data'
+author: "Kesava Asam"
+date: 'Report Last Run: `r Sys.time()`'
+output:
+  pdf_document:
+    toc_depth: 2
+    number_sections: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd("~/Documents/tidy_tuesday/nber_publication")
+```
+
+\centering
+\raggedright
+\newpage
+\tableofcontents
+
+\newpage
+
+# Packages
+
+```{r}
+# load required packages
+library(tidyverse)
+library(tidytuesdayR)
+library(ggdark)
+theme_set(theme_light())
+```
+
+# Data
+
+```{r}
+# read in the data manually
+papers <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-09-28/papers.csv')
+programs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-09-28/programs.csv')
+paper_programs <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-09-28/paper_programs.csv')
+```
+
+NBR Publication data
+
+Data set for graphs
+
+```{r}
+pub_data <- 
+  inner_join(papers, paper_programs) %>% 
+  inner_join(programs) 
+```
+
+Check the data
+
+```{r}
+pub_data %>% 
+  count(year) %>% filter(year != 2021) %>% # 2021 is not complete
+  ggplot(aes(x = year, y = n)) +
+  geom_line()
+```
+
+Check recent 10 years per month submissions?
+
+```{r}
+pub_data %>% 
+  count(year) %>% filter(year > 2009 & year != 2021) %>% 
+  ggplot(aes(x = year, y = n)) +
+  geom_line()
+```
+
+\newpage
+
+# Function
+
+Make a function to pick keywords
+
+```{r}
+pick_title <- function(term_int) {
+  
+  pub_data %>%  
+    filter(year != 2021 & year > 1989) %>% 
+    distinct(title, .keep_all = T) %>% 
+    filter(grepl({{term_int}}, title)) %>% 
+    group_by(year) %>% 
+    mutate(count = n()) %>% 
+    ungroup()
+}
+```
+
+\newpage
+
+# Subset
+
+## Sex related
+
+```{r}
+sex_df <- 
+  pick_title('Gender|Sex |Male|Female|Girls|Boys|Women|Men ') %>% 
+  mutate('category' = "Gender")
+```
+
+## Health related
+
+```{r}
+health_df <- 
+  pick_title('Health|fitness') %>% 
+  mutate('category' = "Health")
+```
+
+## Retirement
+
+```{r}
+retire_df <- 
+  pick_title('Retirement') %>% 
+  mutate('category' = "Retirement")
+```
+
+
+## Education
+
+```{r}
+edu_df <- 
+  pick_title('Education|University|School') %>% 
+  mutate('category' = "Education")
+```
+
+# Defense
+
+```{r}
+def_df <- 
+  pick_title('Defense|Army|Military|Navy') %>% 
+  mutate('category' = "Defense")
+```
+
+# Pollution
+
+```{r}
+poll_df <- 
+  pick_title('Pollution|Climate|Recycling|Hazardous') %>% 
+  mutate('category' = "Pollution/Climate")
+```
+
+## Combine
+
+```{r}
+df_cat_int <- rbind(health_df, edu_df, retire_df, 
+                  sex_df, def_df, poll_df) 
+```
+
+\newpage
+
+# Visualization
+
+```{r}
+# Custom colors
+colrs_1 <- c("#E83122", "#FAA42E", "#FAEB36", "#82CA20", "#487DE7", "#4B369D")
+colrs_2 <- c('#E12D7B','#F67B52', "#EDCD3B", "#3BBC54", "#2665BD", "#481899")
+
+# Plot
+p <- df_cat_int %>% 
+  ggplot(aes(x = year, y = count, color = category, fill = category)) +
+  geom_line(alpha = 0.20) +
+  geom_smooth(method = 'loess', formula = 'y ~ x')+
+  scale_color_manual(values=colrs_2)+
+  scale_fill_manual(values=colrs_1)+
+  scale_x_continuous(breaks = seq(1990, 2020, 2)) +
+  scale_y_continuous(breaks = seq(0, 70, 5)) +
+  labs(title = "Health and Education terms have signifcantly increased in NBER Publications over time!",
+    subtitle= "Words seen in the National Bureau of Economic Research papers' titles from 1990 to 2020.Smoothing method used is 'loess'.", 
+    caption = "TidyTuesday 2021-09-28. Visualisation by Kesava Asam.\n Data Source:NBER by Bern Davis",
+       x= "", y = "Number of papers", 
+       fill = "Word Related to", 
+       color = "Word Related to") 
+```
+
+```{r fig.height=8, fig.width=12}
+# Using the dark_mode from ggdark by nsgrantham
+p + dark_mode() +
+  theme(legend.position = "bottom")
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_nber_publications_result.png", 
+       plot = last_plot(), width = 250, height = 200, 
+       units = "mm", dpi = 300)
+```
+
+\newpage
+
+# References:
+      - [Color palletes](https://www.schemecolor.com/kaleidoscope-rainbow.php)
+      - [GGDark](https://github.com/nsgrantham/ggdark)   
+
+
+
+
+
+```{r}
+sessionInfo()
+```
+
