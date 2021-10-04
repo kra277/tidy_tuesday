@@ -1,6 +1,9 @@
 # tidy_tuesday_2021
 Attempt at the tidy Tuesday datasets
 
+# NBER Publication Graph
+
+![tidy_tuesday_nber_publication_result](https://github.com/kra277/tidy_tuesday_2021/blob/main/nber_publication_10032021/tidy_tuesday_nber_publications_result.png)
 
 # Emmy Awards Graph
 
