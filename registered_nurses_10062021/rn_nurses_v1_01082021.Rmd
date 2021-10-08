@@ -1,0 +1,448 @@
+---
+title: 'Tidy Tuesday: Registered Nurses'
+author: "Kesava Asam"
+date: 'Report Last Run: `r Sys.time()`'
+output:
+  pdf_document:
+    toc_depth: 2
+    number_sections: yes
+editor_options:
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+setwd("~/Documents/tidy_tuesday/registered_nurses_10062021")
+```
+
+\centering
+\raggedright
+\newpage
+\tableofcontents
+
+\newpage
+
+# Packages
+
+```{r}
+# load required packages
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+library(scales)
+theme_set(theme_light())
+```
+
+# Data
+
+```{r}
+data_tue <- tt_load('2021-10-05')
+```
+
+```{r}
+nurses_rn <- 
+  data_tue$nurses %>% 
+  clean_names()
+```
+
+Registered Nurses - From Data.World
+
+Check the data
+
+```{r}
+nurses_rn %>% 
+  filter(year == 2020) %>% 
+  mutate(state = fct_reorder(state, total_employed_rn)) %>% 
+  ggplot(aes(x = total_employed_rn, y = state)) +
+  geom_col() 
+```
+
+\newpage
+
+Can we do comparison of 2010 to 2020 wage comparison?
+
+```{r}
+nurses_rn %>% 
+  filter(year %in% c(2000, 2010, 2020)) %>% 
+  select(state, year, total_employed_rn, hourly_wage_median) %>% 
+  pivot_wider(names_from = year, values_from = c(total_employed_rn, hourly_wage_median)) %>% arrange(desc(hourly_wage_median_2020)) %>% select(state, hourly_wage_median_2020) %>% head()
+```
+
+
+```{r}
+# Make the df needed
+df_int <- 
+  nurses_rn %>% 
+  filter(year %in% c(2000, 2010, 2020)) %>% 
+  select(state, year, total_employed_rn, hourly_wage_median) %>% 
+  # get rns and media wages for 2000, 2010, and 2020 as wide table
+  pivot_wider(names_from = year, 
+              values_from = c(total_employed_rn, hourly_wage_median)) %>% 
+  # calculate percent change b/w 2010 and 2020 wages
+  mutate("decade_diff" = 
+           (hourly_wage_median_2020 - hourly_wage_median_2010)/hourly_wage_median_2010) 
+```
+
+\newpage
+
+```{r}
+# custom colors
+col_man <- c("lowest" = "#FF0018", 
+             "low" = "#FF92E5", 
+             "highest" = "#1FD537",
+             "high" = "#0099FF",
+             "in_between" = "#FFCC33")
+
+wages_2020 <- 
+  df_int %>% 
+  # bins for specific wages
+  mutate(state = fct_reorder(state, hourly_wage_median_2020),
+         color_col = factor(case_when(hourly_wage_median_2020 < 16 ~ "lowest",
+                                      hourly_wage_median_2020 < 30  ~ "low",
+                                      hourly_wage_median_2020 > 50 ~ "highest",
+                                      hourly_wage_median_2020 > 40 ~ "high",
+                                      TRUE ~ "in_between"))) %>% 
+  ggplot(aes(x=as.factor(state), y=hourly_wage_median_2020, fill = color_col)) + 
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = col_man, guide = "none") +
+  ylim(-25,75) +
+  theme_minimal() +
+  coord_polar(start = 0) + #dark_mode() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(), 
+    plot.margin = unit(rep(-3,4), "cm")) +
+  geom_segment(aes(x = 0.5, y = 57, xend = 7, yend = 70),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.3, color = "#1FD537") +
+  annotate("text", x = 7.9,  y = 66.5, 
+           label = "California paid \n highest median wage \n of $56.9 /hour", 
+           colour = "#008018", size =5) +
+  geom_segment(aes(x = 1, y = 16, xend = 10, yend = 54),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.3, color = "#FF0018")  +
+  annotate("text", x = 11,  y = 54, 
+           label = "Puerto Rico paid \n lowest median wage \n of $15.9/hour", 
+           colour = "#CC0013",size =5) +
+  geom_segment(aes(x = 53, y = 53, xend = 47, yend = 68),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.3, color = "#1FD537")  +
+  annotate("text", x = 46,  y = 66.5, 
+           label = "Hawaii paid \n second highest median wage \n of $53.1/hour", 
+           colour = "#008018", size =5) +
+  annotate("text", x = c(27, 27),  y = c(38, 38), 
+           label = "States and Territories that paid less than $30/hour", 
+           colour = "#FF92E5",size =6) +
+  annotate("text", x = c(27, 27),  y = c(45, 45), 
+           label = "States and Territories that paid in between $30 - $40/hour", 
+           colour = "#FFBD4A",size =6) +
+  annotate("text", x = c(27, 27),  y = c(53, 53), 
+           label = "States and Territories that paid above $40/hour", 
+           colour = "#0099FF",size =6) +
+  
+  # annotate("text", x = 1,  y = 70, 
+  #          label = "2020 Wages for Registered Nurses in USA", 
+  #          colour = "black",size =7.5, family = "Times") +
+  
+  annotate("text", x = c(0.6, 0.6),  y = -23, 
+           label = "2020 \n Wages for \n Registered Nurses \n in USA", 
+           colour = "black",size =8.0, family = "Times")
+```
+
+\newpage
+
+```{r fig.height=10, fig.width=12}
+wages_2020 + annotate("text", x = c(27, 27),  y = c(66, 66), 
+           label = "Tidy Tuesday 10-05-2021 \n Visualisation by: Kesava Asam \n Data source: Data.World", 
+           colour = "black",size =5)
+```
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_rn_nurses_wages_2020_1008.jpeg", 
+       plot = last_plot(), width = 400, height = 300, 
+       units = "mm", dpi = 300)
+```
+
+
+\newpage
+
+Few more checks
+
+```{r}
+df_int %>% arrange(hourly_wage_median_2010) %>% select(state, hourly_wage_median_2010)
+
+df_int %>% arrange(desc(hourly_wage_median_2010)) %>% select(state, hourly_wage_median_2010)
+
+df_int %>% arrange(hourly_wage_median_2000) %>% select(state, hourly_wage_median_2000)
+
+nurses_rn %>% filter(year == 2005) %>% 
+  arrange(desc(hourly_wage_median)) %>% 
+  select(state, hourly_wage_median)
+```
+
+\newpage
+
+```{r}
+# Custom colors
+col_man <- c("lowest" = "#FF0018", 
+             "low" = "#FF92E5", 
+             "highest" = "#1FD537",
+             "high" = "#0099FF",
+             "in_between" = "#FFCC33")
+
+# Plot for 2010 wages
+wages_2010 <- 
+  df_int %>% 
+  # bins for specific wages
+  mutate(state = fct_reorder(state, hourly_wage_median_2010),
+         color_col = factor(case_when(hourly_wage_median_2010 < 15 ~ "lowest",
+                                      hourly_wage_median_2010 < 25  ~ "low",
+                                      hourly_wage_median_2010 > 40 ~ "highest",
+                                      hourly_wage_median_2010 > 35 ~ "high",
+                                      TRUE ~ "in_between"))) %>% 
+  ggplot(aes(x=as.factor(state), y=hourly_wage_median_2010, fill = color_col)) + 
+  geom_bar(stat="identity") +
+  scale_fill_manual(values = col_man, guide = "none") +
+  ylim(-25,75) +
+  theme_minimal() +
+  coord_polar(start = 0) + #dark_mode() +
+  theme(
+    axis.text = element_blank(),
+    axis.title = element_blank(),
+    panel.grid = element_blank(), 
+    plot.margin = unit(rep(-3,4), "cm")) +
+  geom_segment(aes(x = 0.5, y = 41, xend = 7, yend = 70),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.3, color = "#1FD537") +
+  annotate("text", x = 7.9,  y = 66.5, 
+           label = "California paid \n highest median wage \n of $41.0/hour", 
+           colour = "#008018", size =5) +
+  geom_segment(aes(x = 1, y = 14, xend = 10, yend = 54),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.3, color = "#CC0013")  +
+  annotate("text", x = 11,  y = 54, 
+           label = "Puerto Rico paid \n lowest median wage \n of $14.3/hour", 
+           colour = "#CC0013",size =5) +
+  geom_segment(aes(x = 53, y = 40.4, xend = 47, yend = 68),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.3, color = "#1FD537")  +
+  annotate("text", x = 46,  y = 66.5, 
+           label = "Hawaii paid \n second highest median wage \n of $40.4/hour", 
+           colour = "#008018", size =5) +
+  
+  annotate("text", x = c(27, 27),  y = c(38, 38), 
+           label = "States and Territories that paid less than $25/hour", 
+           colour = "#FF92E5",size =6) +
+  annotate("text", x = c(27, 27),  y = c(45, 45), 
+           label = "States and Territories that paid in between $25 - $35/hour", 
+           colour = "#FFBD4A",size =6) +
+  annotate("text", x = c(27, 27),  y = c(53, 53), 
+           label = "States and Territories that paid above $40/hour", 
+           colour = "#0099FF",size =6) +
+  
+  # annotate("text", x = 1,  y = 70, 
+  #          label = "2020 Wages for Registered Nurses in USA", 
+  #          colour = "black",size =7.5, family = "Times") +
+  
+  annotate("text", x = c(0.6, 0.6),  y = -23, 
+           label = "2010 \n Wages for \n Registered Nurses \n in USA", 
+           colour = "black",size =8.0, family = "Times")
+```
+
+\newpage
+
+```{r  fig.height=10, fig.width=12}
+wages_2010 +
+
+annotate("text", x = c(27, 27),  y = c(66, 66), 
+           label = "Tidy Tuesday 10-05-2021 \n Visualisation by: Kesava Asam \n Data source: Data.World", 
+           colour = "black",size =5)
+```
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_rn_nurses_wages_2010_1008.jpeg", 
+       plot = last_plot(), width = 400, height = 300, 
+       units = "mm", dpi = 300)
+```
+
+
+\newpage
+
+```{r}
+# Display the States that showed highest or lowest wage increase across the decade
+
+states_int <- c("Delaware", "Maryland", "Alabama", "Mississippi", "Minnesota", 
+                "California", "Virgin Islands", "Hawaii", "North Dakota", "Oregon")
+
+
+col_pal <- c("low" = "#E30220", 
+             "high" = "#63C328")
+
+lol_plot <- 
+  df_int %>%  
+  arrange(desc(decade_diff)) %>% 
+  select(state, decade_diff) %>% 
+  filter(state %in% states_int) %>% 
+  mutate(color_col = factor(case_when(decade_diff < 0.15 ~ "low",
+                                      decade_diff > 0.15  ~ "high")),
+         state = fct_reorder(state, decade_diff)) %>% 
+  ggplot(aes(state, decade_diff)) +
+  geom_segment( aes(x=state, xend=state, y=0, yend=decade_diff), 
+                color="gray", size = 1.5, alpha = 0.6) +
+  geom_point(aes(size = decade_diff, color = color_col), alpha = 0.95) +
+  scale_radius(range = c(12, 32)) +
+  scale_color_manual(values = col_pal, guide = "none") +
+  scale_y_continuous(labels = percent_format(), breaks = seq(0,10,0.05)) +
+  #coord_flip() +
+  labs(y= "", 
+       x = "") +
+  theme_void() +
+  theme(
+    #axis.text = element_blank(),
+    #axis.title = element_blank(),
+    panel.grid = element_blank(), 
+    legend.position = "none") 
+  
+```
+
+\newpage
+
+```{r}
+# Add annotations to identify the states and the percent increase in wages
+
+lollipop_plot <- 
+  
+  lol_plot +
+  
+  annotate("text", x = 1,  y = 0.055, 
+           label = "3.4%", 
+           colour = "#E30220", size =6.5, family = "Times") +
+  annotate("text", x = 2,  y = 0.085, 
+           label = "6.6%", 
+           colour = "#E30220", size =6.5, family = "Times") +
+  annotate("text", x = 3,  y = 0.085, 
+           label = "6.6%", 
+           colour = "#E30220", size =6.5, family = "Times") +
+  annotate("text", x = 4,  y = 0.104, 
+           label = "8.6%", 
+           colour = "#E30220", size =6.5, family = "Times") +
+  annotate("text", x = 5,  y = 0.125, 
+           label = "10.3%", 
+           colour = "#E30220", size =6.5, family = "Times") +
+  
+  
+  annotate("text", x = 6,  y = 0.305, 
+           label = "28.0%", 
+           colour = "#008018", size =6.5, family = "Times") +
+  annotate("text", x = 7,  y = 0.33, 
+           label = "30.5%", 
+           colour = "#008018", size =6.5, family = "Times") +
+  annotate("text", x = 8,  y = 0.34, 
+           label = "31.3%", 
+           colour = "#008018", size =6.5, family = "Times") +
+  annotate("text", x = 9,  y = 0.36, 
+           label = "33.4%", 
+           colour = "#008018", size =6.5, family = "Times") +
+  annotate("text", x = 10,  y = 0.415, 
+           label = "38.8%", 
+           colour = "#008018", size =6.5, family = "Times") +
+  
+  
+  
+  annotate("text", x = 1,  y = -0, 
+           label = "\n Delaware", 
+           colour = "#E30220", size =4.5, family = "sans") +
+  annotate("text", x = 2,  y = -0, 
+           label = "\n Maryland", 
+           colour = "#E30220", size =4.5, family = "sans") +
+  annotate("text", x = 3,  y = -0, 
+           label = "\n Alabama", 
+           colour = "#E30220", size =4.5, family = "sans") +
+  annotate("text", x = 4,  y = -0, 
+           label = "\n Mississippi", 
+           colour = "#E30220", size =4.5, family = "sans")+
+  annotate("text", x = 5,  y = -0, 
+           label = "\n Minnesota", 
+           colour = "#E30220", size =4.5, family = "sans")+
+  
+  
+  annotate("text", x = 6,  y = -0, 
+           label = "\n Oregon", 
+           colour = "#008018", size =4.5, family = "sans")+
+  annotate("text", x = 7,  y = -0, 
+           label = "\n North Dakota", 
+           colour = "#008018", size =4.5, family = "sans")+
+  annotate("text", x = 8,  y = -0, 
+           label = "\n Hawaii", 
+           colour = "#008018", size =4.5, family = "sans")+
+  annotate("text", x = 9,  y = -0, 
+           label = "\n Virgin Islands", 
+           colour = "#008018", size =4.5, family = "sans")+
+  annotate("text", x = 10,  y = -0, 
+           label = "\n California", 
+           colour = "#008018", size =4.5, family = "sans")+
+  
+  
+  geom_curve(aes(x = 10, y = 0.385, xend = 9.6, yend = 0.30),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.2, angle = 90, color = "#1FD537") +
+  annotate("text", x = 9.8,  y = 0.28, 
+           label = "California has \n the highest wage increase \n over the decade.", 
+           colour = "#008018", size =5.2, family = "Times") +
+  
+  
+  geom_curve(aes(x = 0.9, y = 0.038, xend = 1, yend = 0.15),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.2, curvature = -0.5, angle = 90, color = "#E30220") +
+  annotate("text", x = 1.69,  y = 0.15, 
+           label = "Delaware has \n the lowest wage increase \n over the decade.", 
+           colour = "#E30220", size =5.2, family = "Times") +
+  
+  
+  annotate("text", x = 5.2,  y = 0.42, 
+           label = "Percent increase of registered Nurse wages \n over the past decade in USA.", 
+           colour = "black",size =9, family = "Times") +
+  
+  annotate("text", x = 5.5,  y = -0.01, 
+           label = "\n\n Tidy Tuesday 10-05-2021. Visualisation by: Kesava Asam. Data source: Data.World", 
+           colour = "black",size =5.5, family = "Times")
+
+ 
+``` 
+
+\newpage
+
+```{r fig.height=10, fig.width=12}
+lollipop_plot
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_rn_nurses_lollipop_1008.jpeg", 
+       plot = last_plot(), width = 400, height = 300, 
+       units = "mm", dpi = 300)
+```
+
+\newpage
+
+```{r fig.height=20, fig.width=20}
+# Make a collage using cowplot
+p1 <- cowplot::plot_grid(wages_2020, wages_2010)
+
+cowplot::plot_grid(p1, lollipop_plot, ncol = 1) 
+```
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_rn_nurses_results_collage_1008.jpeg", 
+       plot = last_plot(), width = 550, height = 540, 
+       units = "mm", dpi = 400)
+```
+
+\newpage
+
+```{r}
+sessionInfo()
+```
+
