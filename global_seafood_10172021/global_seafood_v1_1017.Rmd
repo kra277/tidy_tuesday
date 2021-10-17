@@ -1,0 +1,360 @@
+---
+title: 'Tidy Tuesday: Global SeaFood'
+author: "Kesava"
+date: 'Report Last Run: `r Sys.time()`'
+output:
+  html_document:
+    code_folding: hide
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages
+
+Install required packages
+
+```{r message=FALSE, warning=FALSE}
+# load required packages
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+library(ggstream)
+library(scales)
+```
+
+# Data
+
+Get this weeks data from Tidy tuesday github.
+
+```{r}
+data_tue <- tt_load('2021-10-12', auth = github_pat())
+```
+
+There is a lot of information this week I would like to concentrate on Aquaculture production of top 5 countries.
+
+```{r}
+# Parameters
+caption <- "Tidy Tuesday 10-12-2021 Visualisation by: Kesava Asam \n Data source: OurWorldinData.org"
+```
+
+Clean the data and pick the top 5 countries
+
+```{r}
+# Clean the aqua culture data
+aqua_culture <- 
+  data_tue$`aquaculture-farmed-fish-production` %>% 
+  clean_names() %>% 
+  rename("cultured" = "aquaculture_production_metric_tons") %>% 
+  filter(code != "OWID_WRL", !is.na(code))
+
+# Select top 5 countries
+countries <- aqua_culture %>%
+  filter(year == max(year)) %>%
+  arrange(desc(cultured)) %>%
+  head(5) %>% 
+  pull(entity)
+```
+
+\newpage
+
+# Make an area plot!
+
+## Bare back bones
+
+```{r fig.height=10, fig.width=16, message=FALSE}
+# Plot the top 5 countries
+aqua_plot_1 <- 
+  aqua_culture %>% 
+  filter(entity %in% countries) %>% 
+  mutate(entity = fct_relevel(entity, countries)) %>%
+  ggplot(., aes(x=year, fill=entity)) +
+  geom_area(aes(y = cultured), 
+            alpha = 0.9, linetype = 1, size =0.25, 
+            color="grey50", position = "stack") +
+  ggdark::dark_theme_void() + 
+  theme(legend.position = "left") +
+  labs(x = "", y = "", fill = "Country") 
+
+aqua_plot_1
+```
+
+## Custom colors
+
+```{r fig.height=10, fig.width=16}
+# Add custom colors
+
+## Make custom colors
+# color <- c()
+# color[order] <- 
+
+## Add to plot
+aqua_plot_2 <- 
+  aqua_plot_1 + 
+  scale_fill_manual(values = colorRampPalette(c("#0286c2", "#00ffea"))(5))
+
+aqua_plot_2
+```
+
+## Finalized plot
+
+```{r}
+# Add annotations
+aqua_plot_final <- 
+  aqua_plot_2 + 
+  
+  ## Million Metric Tons
+  annotate("text", x = 2023,  y = 85000000, 
+           label = "In 2018, no of \n Million \n Metric Tons \n Cultured", 
+           colour = "grey", size =4.5, family = "Georgia") +
+  
+  geom_segment(aes(x = 2023, xend = 2023, y = 76000000, yend = 64000000),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.5, color = "grey50") +
+  
+  
+  # China
+  geom_segment(aes(x = 2018, xend = 2022, y = 65000000, yend = 60000000),
+               size = 0.2, color = "#0286C2", linetype = 17) +
+  annotate("text", x = 2023,  y = 57000000, 
+           label = "China \n 66.1 M", 
+           colour = "#0286C2", size =4, family = "Georgia") +
+  
+  # Indonesia
+  geom_segment(aes(x = 2018, xend = 2021.5, y = 22000000, yend = 26000000),
+               size = 0.2, color = "#01A4CB", linetype = 17) +
+  annotate("text", x = 2023.5,  y = 27000000, 
+           label = "Indonesia \n 14.7 M", 
+           colour = "#01A4CB", size =4, family = "Georgia") +
+  
+  
+  # India
+  geom_segment(aes(x = 2018, xend = 2022, y = 11000000, yend = 15000000),
+               size = 0.2, color = "#01C2D5", linetype = 17) +
+  annotate("text", x = 2023.5,  y = 16000000, 
+           label = "India \n 7 M", 
+           colour = "#01C2D5", size =4, family = "Georgia") +
+  
+   # Vietnam
+  geom_segment(aes(x = 2018, xend = 2022, y = 5000000, yend = 6000000),
+               size = 0.2, color = "#00E0E0", linetype = 11) +
+  annotate("text", x = 2023.5,  y = 7000000, 
+           label = "Vietnam \n 4.1 M", 
+           colour = "#00E0E0", size =4, family = "Georgia") +
+  
+  
+  # Bangladesh
+  geom_segment(aes(x = 2018, xend = 2021, y = 900000, yend = -1000000), 
+               size = 0.2, color = "#00FFEA", linetype = 17) +
+  annotate("text", x = 2023.5,  y = -3200000, 
+           label = "Bangladesh \n 2.4 M", 
+           colour = "#00FFEA", size =4, family = "Georgia") +
+  
+  # Title
+  annotate("text", x = 1990,  y = 108000000, 
+           label = "Top 5 Countries' aqua culture production over past 50 years", 
+           colour = "grey",size =8.0, family = "Georgia") +
+  
+  # Subtitle
+  annotate("text", x = 1990,  y = 102000000, 
+           label = "China's 2018 aquaculture production is 4.5X higher than Indonesia", 
+           colour = "grey",size =5.0, family = "Times") +
+  
+  # Caption
+  annotate("text", x = 1990,  y = -10000000, 
+           label = caption, 
+           colour = "grey",size =3.5, family = "Times")
+```
+
+\newpage
+
+```{r fig.height=10, fig.width=16}
+aqua_plot_final
+```
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_aquaculture_area_plot_1017.jpeg", 
+       plot = last_plot(), width = 400, height = 300, 
+       units = "mm", dpi = 300)
+```
+
+\newpage
+
+# Make a streamplot
+
+This may resemble more of a water body! I wanted to use something that looks like a stream.
+
+```{r fig.height=10, fig.width=16}
+aqua_stream_plot <- 
+  # Clean up and arrangements
+  aqua_culture %>% 
+  filter(entity %in% countries) %>% 
+  mutate(entity = fct_relevel(entity, countries)) %>% 
+  
+  ## Plotting
+  ggplot(aes(year, cultured, fill=entity)) +
+  geom_stream(linetype = 1, size =0.25, 
+              color="grey50") +
+  scale_y_continuous(label = number_format()) +
+  
+  ## Custom colors
+  scale_fill_manual(values = colorRampPalette(c("#0286c2", "#00ffea"))(5))  +
+  ggdark::dark_theme_void() +
+  theme(legend.position = "left") +
+  labs(fill = "") +
+  
+  # Annotations
+  
+  ## Million Metric Tons
+  annotate("text", x = 2024,  y = 40000000, 
+           label = "In 2018, no of \n Million \n Metric Tons \n Cultured", 
+           colour = "grey70", size =4.3, family = "Georgia") +
+  
+  geom_segment(aes(x = 2024, xend = 2024, y = 34000000, yend = 31000000),
+               arrow = arrow(length = unit(0.15, "cm")), 
+               size = 0.5, color = "grey70") +
+  
+  ## China
+  geom_segment(aes(x = 2018, xend = 2022, y = 18000000, yend = 20000000),
+               size = 0.2, color = "#0286C2") +
+  annotate("text", x = 2024,  y = 21000000, 
+           label = "China \n 66.1 M", 
+           colour = "#0286C2", size =4.3, family = "Georgia") +
+  
+  ## Indonesia
+  geom_segment(aes(x = 2018, xend = 2021.5, y = -24000000, yend = -21000000),
+               size = 0.2, color = "#01A4CB") +
+  annotate("text", x = 2023.5,  y = -20000000, 
+           label = "Indonesia \n 14.7 M", 
+           colour = "#01A4CB", size =4.3, family = "Georgia") +
+  
+  
+  # India
+  geom_segment(aes(x = 2018, xend = 2022, y = -34000000, yend = -31000000),
+               size = 0.2, color = "#01C2D5") +
+  annotate("text", x = 2023.5,  y = -30000000, 
+           label = "India \n 7 M", 
+           colour = "#01C2D5", size =4.3, family = "Georgia")+ 
+  
+   # Vietnam
+  geom_segment(aes(x = 2018, xend = 2022.3, y = -40000000, yend = -39500000),
+               size = 0.2, color = "#00E0E0") +
+  annotate("text", x = 2024,  y = -38500000, 
+           label = "Vietnam \n 4.1 M", 
+           colour = "#00E0E0", size =4.3, family = "Georgia") +
+  
+  
+  # Bangladesh
+  geom_segment(aes(x = 2018, xend = 2021, y = -42500000, yend = -45000000), 
+               size = 0.2, color = "#00FFEA") +
+  annotate("text", x = 2024,  y = -46000000, 
+           label = "Bangladesh \n 2.4 M", 
+           colour = "#00FFEA", size =4.3, family = "Georgia") +
+  
+  # Title
+  annotate("text", x = 1985,  y = 41000000, 
+           label = "Top 5 Countries' aquaculture production over past 50 years", 
+           colour = "grey",size =9.5, family = "Georgia") +
+  
+  # Subtitle
+  annotate("text", x = 1985,  y = 37500000, 
+           label = "China's 2018 aquaculture production is 4.5X higher than Indonesia", 
+           colour = "grey",size =6.5, family = "Times") +
+  
+  # Caption
+  annotate("text", x = 1985,  y = -50000000, 
+           label = caption, 
+           colour = "grey",size =3.5, family = "Times")
+
+aqua_stream_plot
+```
+
+## More info
+
+Need to add some more info!
+
+```{r}
+# Check the data for more info
+aqua_culture %>% 
+  filter(entity %in% countries, year %in% c(1960, 1970, 1980, 1990, 2000, 2010, 2018)) %>% 
+  group_by(year) %>% 
+  mutate(entity = fct_relevel(entity, countries), 
+         countries_total = sum(cultured)) %>% 
+  select(countries_total)
+```
+
+```{r}
+# Add the additional info
+aqua_stream_plot_final <-
+  aqua_stream_plot +
+  geom_segment(aes(x = 1960, xend = 1960, y = 0, yend = -20000000),
+               size = 0.12, color = "grey60", linetype = 15) +
+  annotate("text", x = 1960,  y = -21000000, 
+           label = "1960, all 5 countries \n together cultured \n 1.1 M metric tons", 
+           colour = "grey90", size =2.6, family = "Arial") +
+  
+  geom_segment(aes(x = 1970, xend = 1970, y = 0, yend = -22000000),
+               size = 0.12, color = "grey60", linetype = 15) +
+  annotate("text", x = 1970,  y = -23000000, 
+           label = "1970, all 5 countries \n together cultured \n 1.8 M metric tons", 
+           colour = "grey90", size =2.6, family = "Arial")+
+  
+  geom_segment(aes(x = 1980, xend = 1980, y = 0, yend = -24000000),
+               size = 0.12, color = "grey60", linetype = 15) +
+  annotate("text", x = 1980,  y = -25000000, 
+           label = "1980, all 5 countries \n together cultured \n 3.8 M metric tons", 
+           colour = "grey90", size =2.6, family = "Arial") +
+  
+  geom_segment(aes(x = 1990, xend = 1990, y = 0, yend = -26000000),
+               size = 0.12, color = "grey60", linetype = 15) +
+  annotate("text", x = 1990,  y = -27000000, 
+           label = "1990, all 5 countries \n together cultured \n 10.3 M metric tons", 
+           colour = "grey90", size =2.6, family = "Arial")+
+  
+  geom_segment(aes(x = 2000, xend = 2000, y = 0, yend = -28000000),
+               size = 0.12, color = "grey60", linetype = 15) +
+  annotate("text", x = 2000,  y = -29000000, 
+           label = "2000, all 5 countries \n together cultured \n 33.3 M metric tons", 
+           colour = "grey90", size =2.6, family = "Arial")+
+  
+  geom_segment(aes(x = 2010, xend = 2010, y = 0, yend = -39000000),
+               size = 0.12, color = "grey60", linetype = 15) +
+  annotate("text", x = 2010,  y = -40000000, 
+           label = "2010, all 5 countries \n together cultured \n 61.8 M metric tons", 
+           colour = "grey90", size =2.6, family = "Arial")+
+  
+  geom_segment(aes(x = 2018, xend = 2018, y = 0, yend = -48000000),
+               size = 0.12, color = "grey60", linetype = 15) +
+  annotate("text", x = 2018,  y = -49000000, 
+           label = "2018, all 5 countries \n together cultured \n 94.5 M metric tons", 
+           colour = "grey90", size =2.6, family = "Arial")
+```
+
+## Final Plot
+
+```{r fig.height=10, fig.width=16}
+aqua_stream_plot_final
+```
+
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_aquaculture_stream_plot_1017.jpeg", 
+       plot = last_plot(), width = 400, height = 300, 
+       units = "mm", dpi = 300)
+```
+
+\newpage
+
+# Session
+
+```{r}
+sessionInfo()
+```
+
