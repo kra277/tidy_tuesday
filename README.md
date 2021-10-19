@@ -1,6 +1,11 @@
 # tidy_tuesday_2021
 Attempt at the tidy Tuesday datasets
 
+# Big Pumpkin Graph
+
+![tidy_tuesday_big_pumpkin_result](https://github.com/kra277/tidy_tuesday_2021/blob/main/pumpkins_10192021/tidy_tuesday_big_pumpkin_plot_1019.jpeg)
+
+
 # Global Sea food Graph
 
 ![tidy_tuesday_global_seafood_result](https://github.com/kra277/tidy_tuesday_2021/blob/main/global_seafood_10172021/tidy_tuesday_aquaculture_stream_plot_1017.jpeg)
