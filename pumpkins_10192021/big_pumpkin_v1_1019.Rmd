@@ -1,0 +1,192 @@
+---
+title: 'Tidy Tuesday: Big Pumpkin'
+author: "Kesava"
+date: 'Report Last Run: `r Sys.time()`'
+output:
+  html_document:
+    code_folding: hide
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Packages
+
+Install required packages
+
+```{r message=FALSE, warning=FALSE}
+# load required packages
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
+library(ggdark)
+```
+
+# Import Data
+
+Get this weeks data from Tidy tuesday github.
+
+```{r}
+data_tue <- tt_load('2021-10-19', auth = github_pat())
+```
+
+# Check data
+
+```{r}
+data_tue$pumpkins %>% group_by(grower_name) %>% count() %>% arrange(desc(n))
+
+data_tue$pumpkins %>% group_by(city) %>% count() %>% arrange(desc(n))
+
+data_tue$pumpkins %>% arrange(desc(weight_lbs))
+```
+
+# Format data
+
+```{r}
+pumpkins <- 
+  data_tue$pumpkins %>% 
+  filter(!grepl("Entries",place)) %>% 
+  unite("area", c(state_prov, country), sep = ", ", remove = F) %>% 
+  mutate(city = stringr::str_to_title(city),
+         weight_kgs = as.numeric(gsub(",", "", weight_lbs))/2.2046, 
+         weight_metric_ton = weight_kgs/1000, 
+         area = str_wrap(area, 25)) %>% 
+  separate(id, c("year", "type"))
+```
+
+# Cleanup before plot
+
+```{r}
+# area order
+area_ord <- pumpkins %>% 
+  filter(weight_metric_ton > 1) %>% 
+  arrange(desc(weight_kgs)) %>% 
+  distinct(area) %>% 
+  pull(area)
+
+pumpkins %>%  
+  filter(weight_metric_ton > 1) %>% 
+  mutate(area = fct_relevel(area, area_ord)) %>% 
+  select(area, weight_kgs, weight_lbs) %>% 
+  arrange(desc(weight_kgs))
+```
+
+# Plot
+
+```{r fig.height=14, fig.width=16}
+
+pumpkins %>%  
+  
+  # Select required
+  filter(weight_metric_ton > 1) %>% 
+  
+  # format
+  mutate(area = fct_relevel(area, area_ord)) %>%
+  
+  # Plot
+  ggplot(aes(weight_kgs, area)) +
+  geom_segment(aes(y=area, yend = area, x= 950, xend=weight_kgs), 
+               size = 1, color = "#63C328", alpha = 0.9) +
+  geom_point(aes(size = weight_kgs), color = "#f2533f", alpha = 0.9)+
+  scale_size_continuous(range = c(12,28)) +
+  coord_cartesian(clip = 'off') +
+  
+  # Labels
+  
+  labs(y = "", 
+       x = "", 
+       title = "\n Distribution of Pumpkins that weigh more than a metric ton (1000 kg) \n", 
+       caption = "\n Tidy Tuesday 10-19-2021 Visualisation by: Kesava Asam \n Data source: bigpumpkin.com") +
+  
+  # Scales
+  
+  scale_x_continuous(breaks = seq(0,1250, 50), 
+                     limits = c(950, 1250), 
+                     label = label_number(suffix = " kg", big.mark = "")) +
+  
+  
+  # Theme settings
+  
+  dark_theme_minimal() +
+  
+  theme(legend.position = "none", 
+        axis.text.y = element_text(size = 14, hjust = 1, color = "grey90"), 
+        plot.title = element_text(color = "grey90", size = 26,
+                                  family = "Georgia", hjust = 0.5), 
+        plot.caption = element_text(hjust = 0.5)) +
+  
+  # Additional annotation
+  
+  geom_curve(aes(x = 1226, y = 1, xend = 1240, yend = 2.2),
+               arrow = arrow(length = unit(0.35,"cm")), 
+             color = "#BC82D6", linetype = "dashed", size = 0.8) +
+  annotate("text", x = 1240,  y = 3, 
+           label = "The Largest Pumpkin \n weighs 1226 kg or \n 2702 lbs.", 
+           colour = "#E097FF",size =5.6, family = "Georgia") +
+  
+  
+  geom_curve(aes(x = 1147, y = 5, xend = 1175, yend = 6.2),
+               arrow = arrow(length = unit(0.35,"cm")), 
+             color = "#BC82D6", linetype = "dashed", size = 0.8) +
+  annotate("text", x = 1175,  y = 6.8, 
+           label = "Largest Pumpkin in the US \n weighs 1147 kg or \n 2528 lbs.", 
+           colour = "#E097FF",size =5.4, family = "Georgia")
+
+```
+
+# Save
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_big_pumpkin_plot_1019.jpeg", 
+       plot = last_plot(), width = 450, height = 400, 
+       units = "mm", dpi = 300)
+```
+
+# Session
+
+```{r eval=FALSE, include=TRUE}
+sessionInfo()
+```
+
+
+R version 4.1.1 (2021-08-10)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Big Sur 11.6
+
+Matrix products: default
+LAPACK: /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] ggdark_0.2.1       scales_1.1.1       tidytuesdayR_1.0.1
+ [4] forcats_0.5.1      stringr_1.4.0      dplyr_1.0.7       
+ [7] purrr_0.3.4        readr_2.0.2        tidyr_1.1.4       
+[10] tibble_3.1.5       ggplot2_3.3.5      tidyverse_1.3.1   
+
+loaded via a namespace (and not attached):
+ [1] tidyselect_1.1.1 xfun_0.26        haven_2.4.3      colorspace_2.0-2
+ [5] vctrs_0.3.8      generics_0.1.0   usethis_2.0.1    utf8_1.2.2      
+ [9] rlang_0.4.11     pillar_1.6.3     glue_1.4.2       withr_2.4.2     
+[13] DBI_1.1.1        selectr_0.4-2    bit64_4.0.5      dbplyr_2.1.1    
+[17] modelr_0.1.8     readxl_1.3.1     lifecycle_1.0.1  munsell_0.5.0   
+[21] gtable_0.3.0     cellranger_1.1.0 rvest_1.0.1      knitr_1.36      
+[25] tzdb_0.1.2       parallel_4.1.1   curl_4.3.2       fansi_0.5.0     
+[29] broom_0.7.9      Rcpp_1.0.7       backports_1.2.1  vroom_1.5.5     
+[33] jsonlite_1.7.2   farver_2.1.0     bit_4.0.4        fs_1.5.0        
+[37] digest_0.6.28    hms_1.1.1        stringi_1.7.5    grid_4.1.1      
+[41] cli_3.0.1        tools_4.1.1      magrittr_2.0.1   crayon_1.4.1    
+[45] pkgconfig_2.0.3  ellipsis_0.3.2   xml2_1.3.2       reprex_2.0.1    
+[49] lubridate_1.7.10 assertthat_0.2.1 httr_1.4.2       rstudioapi_0.13 
+[53] R6_2.5.1         compiler_4.1.1 
