@@ -1,6 +1,11 @@
 # tidy_tuesday_2021
 Attempt at the tidy Tuesday datasets
 
+# Ultra Trail Runners [(Code)](https://github.com/kra277/tidy_tuesday_2021/blob/main/2021_10_25_ultra_trail_running/ultra_trail_running_v1.Rmd)
+
+![tidy_tuesday_ultra_trail_runners_result](https://github.com/kra277/tidy_tuesday_2021/blob/main/2021_10_25_ultra_trail_running/tidy_tuesday_ultra_trail_runners_plot_1029.jpeg)
+
+
 # Big Pumpkin Graph [(Code)](https://github.com/kra277/tidy_tuesday_2021/blob/main/pumpkins_10192021/big_pumpkin_v1_1019.Rmd)
 
 ![tidy_tuesday_big_pumpkin_result](https://github.com/kra277/tidy_tuesday_2021/blob/main/pumpkins_10192021/tidy_tuesday_big_pumpkin_plot_1019.jpeg)
