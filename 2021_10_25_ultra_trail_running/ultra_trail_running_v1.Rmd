@@ -1,0 +1,319 @@
+---
+title: 'Tidy Tuesday: Ultra Trail Running'
+author: "Kesava"
+date: 'Report Last Run: `r Sys.time()`'
+output:
+  html_document:
+    code_folding: hide
+    theme: flatly
+    highlight: tango
+    toc: true
+    toc_float:
+      collapsed: false
+      smooth_scroll: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set
+
+setwd("~/Documents/tidy_tuesday/2021_10_25_ultra_trail_running")
+```
+
+# Packages
+
+Install required packages
+
+```{r message=FALSE, warning=FALSE}
+# load required packages
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+library(scales)
+library(patchwork)
+library(countrycode)
+```
+
+# Import Data
+
+Get this weeks data from Tidy tuesday github.
+
+```{r}
+# read in the data manually
+
+ultra_rankings <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-10-26/ultra_rankings.csv')
+
+race <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-10-26/race.csv')
+
+```
+
+# Check data
+
+```{r}
+ultra_rankings %>% 
+  group_by(runner, nationality) %>% 
+  count() %>% 
+  arrange(desc(n)) %>% 
+  head()
+```
+
+```{r}
+ultra_rankings %>% 
+  group_by(nationality) %>% 
+  count() %>% 
+  arrange(desc(n))
+```
+
+```{r}
+race %>% summary()
+```
+
+# Clean the data
+
+```{r}
+race_clean <- 
+  race %>% 
+  mutate(country = str_replace(country, "^[^,]*, ", "")) %>% 
+  filter(participants > 2, participation == "solo", elevation_gain > 0) %>% 
+  arrange(desc(elevation_gain)) %>% 
+  unite("region", city, country, sep =", ", remove = FALSE )
+```
+
+## Join data to get year
+
+```{r}
+ultra_race <- 
+  inner_join(ultra_rankings, race)
+```
+
+# Add continent data
+
+```{r}
+runners_cont <- 
+  ultra_race %>% 
+  mutate(nationality = str_to_upper(nationality)) %>% 
+  separate(date, "year", extra = 'drop') %>% 
+  group_by(year, nationality) %>%
+  count() %>% 
+  ungroup() %>% 
+  mutate(nationality = recode(nationality, 
+                              "SPA" = "ESP"))
+
+
+runners_cont$continent <- countrycode(sourcevar = runners_cont$nationality,
+                            origin = "ioc",
+                            destination = "continent")
+```
+
+# Check plot
+
+```{r}
+runners_cont %>% 
+  filter(!is.na(continent)) %>% 
+  
+  ggplot(aes(x = year, y = n, fill = continent)) + 
+  geom_col() +
+  facet_wrap(~ factor(continent , levels=c('Africa','Oceania','Asia','Americas', "Europe"))) + 
+  scale_y_continuous(breaks = c(100, 1000, 5000, 7000, 10000, 12000)) +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+
+# Make Continent plot
+
+## Set theme and function
+
+```{r}
+bcolor <- "#FFF7DF"
+
+theme_set(theme_minimal())
+
+theme_update(
+  legend.position = "none", 
+  panel.background = element_rect(fill = bcolor, color = NA),
+  plot.background = element_rect(fill = bcolor, color = NA),
+  panel.grid.major.x = element_blank(), 
+  axis.text = element_text(size = 14), 
+  axis.title.y = element_text(size = 14)
+  # axis.text = element_blank(),
+  # axis.title = element_blank()
+)
+
+plot_cont <- function(df, var_cont, point_color, bar_color) {
+  
+  df %>% 
+    filter(continent == {{var_cont}}) %>% 
+    ggplot(aes(x = year, y = n, fill = continent)) + 
+    geom_col() +
+    geom_point(aes(size = n), color = "black", alpha = 0.3) +
+    geom_point(data=df_labels,aes(size = n), 
+             color=point_color) +
+    geom_text(data=df_labels, 
+              aes(label = nationality), nudge_y = 270,
+              check_overlap = T, color = point_color) +
+    scale_fill_manual(values = bar_color) +
+    scale_y_continuous(limits = c(0, 12000), 
+                       breaks = c(100, 1000, 5000, 7000, 10000, 12000)) 
+  
+}
+```
+
+## Asia
+
+```{r}
+# Colors
+point_color <- "#F193A8"
+bar_color <- "#B13A5A"
+  
+# Labels
+df_labels <- 
+  runners_cont %>% 
+  filter(continent == "Asia", nationality %in% c("JPN", "CHN")) 
+
+asian_plot <- 
+  plot_cont(runners_cont, "Asia", point_color, bar_color) +
+  labs(x = "", y = "Number of Runners") +
+  annotate("text", x = 5,  y = 11000, 
+           label = "From Asia", 
+           colour = bar_color, size =7.0, family = "Georgia") +
+  
+  geom_curve(aes(x = 8, y = 1074, xend = 8.6, yend = 4000),
+               arrow = arrow(length = unit(0.35,"cm")), 
+             color = point_color, size = 0.8, curvature = -0.3) +
+  annotate("text", x = 9,  y = 4500, 
+           label = "More Chinese runners \n than Japan", 
+           colour = bar_color,size =5.6, family = "Times")
+
+asian_plot
+```
+
+## Americas
+
+```{r}
+# Colors
+point_color <- "#BBD3FB"
+bar_color <- "#333399"
+  
+# Labels
+df_labels <- 
+  runners_cont %>% 
+  filter(continent == "Americas", nationality %in% c("USA", "CAN")) 
+
+amer_plot <- 
+  plot_cont(runners_cont, "Americas", point_color, bar_color) +
+  labs(x = "", y = "") +
+  annotate("text", x = 5,  y = 11000, 
+           label = "From Americas", 
+           colour = bar_color, size =7.0, family = "Georgia") +
+  theme(axis.text.y = element_blank()) +
+  
+  geom_curve(aes(x = 8, y = 7604, xend = 9.2, yend = 7700),
+               arrow = arrow(length = unit(0.35,"cm")), 
+             color = point_color, size = 0.8, curvature = -0.3) +
+  annotate("text", x = 9.7,  y = 7750, 
+           label = "7604 \n Runners", 
+           colour = bar_color,size =5.6, family = "Times")
+
+amer_plot
+```
+
+## Europe
+
+```{r}
+# Colors
+point_color <- "#A1DB7E"
+bar_color <- "#008F7A"
+  
+# Labels
+df_labels <- 
+  runners_cont %>% 
+  filter(continent == "Europe", nationality %in% c("FRA", "GBR")) 
+
+euro_plot <- 
+  plot_cont(runners_cont, "Europe", point_color, bar_color) +
+  labs(x = "", y = "") +
+  annotate("text", x = 5,  y = 11000, 
+           label = "From Europe", 
+           colour = bar_color, size =7.0, family = "Georgia") +
+  theme(axis.text.y = element_blank()) +
+  
+  geom_curve(aes(x = 8, y = 4874, xend = 8.9, yend = 6450),
+               arrow = arrow(length = unit(0.35,"cm")), 
+             color = point_color, size = 0.8, curvature = -0.3) +
+  annotate("text", x = 9.2,  y = 6850, 
+           label = "4874 \n Runners", 
+           colour = bar_color,size =5.6, family = "Times")
+
+euro_plot
+```
+
+## Data checks
+
+```{r}
+runners_cont %>% 
+  filter(nationality %in% c("FRA"), year == "2019")
+
+runners_cont %>% 
+  filter(nationality %in% c("USA"), year == "2019")
+
+runners_cont %>% 
+  filter(nationality %in% c("CHN"), year == "2019")
+
+```
+
+## Final Plot collage
+
+```{r}
+ggp_all <- (asian_plot + amer_plot + euro_plot) +    # Create grid of plots with title
+  plot_annotation(title = "Ultra trail runners across continents", 
+                  subtitle = "Labelled two countries per continent that has the highest trail runners.The other countries in the continent were colored black.", 
+                  caption = "Tidy Tuesday 10-26-2021 Visualisation by: Kesava Asam \n Data source: BjnNowak-Github Repo") & 
+  theme(plot.title = element_text(hjust = 0.5, size = 26, family = "Georgia"),
+        plot.subtitle = element_text(hjust = 0.5, size = 16, family = "Georgia"), 
+        plot.caption = element_text(hjust = 0.5, size = 10, family = "Georgia"))
+ggp_all     
+```
+
+
+# Save
+
+```{r eval=FALSE, include=FALSE}
+ggsave("tidy_tuesday_ultra_trail_runners_plot_1029.jpeg", 
+       plot = last_plot(), width = 600, height = 350, 
+       units = "mm", dpi = 300)
+```
+
+# Session
+
+```{r eval=FALSE, include=TRUE}
+sessionInfo()
+```
+
+
+R version 4.1.1 (2021-08-10)
+Platform: x86_64-apple-darwin17.0 (64-bit)
+Running under: macOS Big Sur 11.6
+
+Matrix products: default
+LAPACK: /Library/Frameworks/R.framework/Versions/4.1/Resources/lib/libRlapack.dylib
+
+locale:
+[1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+ [1] countrycode_1.3.0  patchwork_1.1.1    scales_1.1.1       janitor_2.1.0      tidytuesdayR_1.0.1 forcats_0.5.1     
+ [7] stringr_1.4.0      dplyr_1.0.7        purrr_0.3.4        readr_2.0.2        tidyr_1.1.4        tibble_3.1.5      
+[13] ggplot2_3.3.5      tidyverse_1.3.1   
+
+loaded via a namespace (and not attached):
+ [1] tidyselect_1.1.1 xfun_0.26        haven_2.4.3      snakecase_0.11.0 colorspace_2.0-2 vctrs_0.3.8     
+ [7] generics_0.1.0   usethis_2.0.1    utf8_1.2.2       rlang_0.4.11     pillar_1.6.3     glue_1.4.2      
+[13] withr_2.4.2      DBI_1.1.1        bit64_4.0.5      dbplyr_2.1.1     modelr_0.1.8     readxl_1.3.1    
+[19] lifecycle_1.0.1  munsell_0.5.0    gtable_0.3.0     cellranger_1.1.0 rvest_1.0.1      knitr_1.36      
+[25] tzdb_0.1.2       parallel_4.1.1   curl_4.3.2       fansi_0.5.0      broom_0.7.9      Rcpp_1.0.7      
+[31] backports_1.2.1  vroom_1.5.5      jsonlite_1.7.2   farver_2.1.0     bit_4.0.4        fs_1.5.0        
+[37] digest_0.6.28    hms_1.1.1        stringi_1.7.5    grid_4.1.1       cli_3.0.1        tools_4.1.1     
+[43] magrittr_2.0.1   crayon_1.4.1     pkgconfig_2.0.3  ellipsis_0.3.2   xml2_1.3.2       reprex_2.0.1    
+[49] lubridate_1.7.10 assertthat_0.2.1 httr_1.4.2       rstudioapi_0.13  R6_2.5.1         compiler_4.1.1  
